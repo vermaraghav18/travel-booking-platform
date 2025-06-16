@@ -2,34 +2,29 @@ const express = require('express');
 const axios = require('axios');
 const router = express.Router();
 
-router.get('/search-flights-kiwi', async (req, res) => {
+router.get('/search-kiwi', async (req, res) => {
   const { from, to, date } = req.query;
 
-  const kiwiURL = 'https://kiwi-com-cheap-flights.p.rapidapi.com/one-way';
-  const options = {
-    method: 'GET',
-    url: kiwiURL,
-    params: {
-      source: from,
-      destination: to,
-      date: date,
-      adults: '1',
-      currency: 'inr',
-      sort: 'price',
-    },
-    headers: {
-      'X-RapidAPI-Key': process.env.KIWI_API_KEY,
-      'X-RapidAPI-Host': 'kiwi-com-cheap-flights.p.rapidapi.com',
-    },
-  };
-
   try {
-    const response = await axios.request(options);
-    console.log('✈️ Raw Kiwi Data:', response.data);
+    const response = await axios.get('https://kiwi-com-cheap-flights.p.rapidapi.com/one-way', {
+      params: {
+        from,          // e.g., "DEL"
+        to,            // e.g., "BOM"
+        date,          // e.g., "2025-06-17"
+        adult: 1,
+        child: 0,
+        infant: 0,
+        currency: 'INR'
+      },
+      headers: {
+        'X-RapidAPI-Key': process.env.KIWI_API_KEY,
+        'X-RapidAPI-Host': 'kiwi-com-cheap-flights.p.rapidapi.com'
+      }
+    });
 
-    res.json({ success: true, data: response.data.data || [] });
+    res.json({ success: true, data: response.data });
   } catch (error) {
-    console.error('❌ Kiwi API error:', error.message);
+    console.error('Kiwi API error:', error.message);
     res.status(500).json({ success: false, message: 'Kiwi API error', error: error.message });
   }
 });

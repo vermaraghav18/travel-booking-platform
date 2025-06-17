@@ -1,99 +1,96 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // Added useEffect here
 import axios from 'axios';
 
-function FlightSearch() {
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
-  const [date, setDate] = useState('');
-  const [flights, setFlights] = useState([]);
-  const [loading, setLoading] = useState(false);
+const FlightSearch = ({ initialValues, onSearch, loading }) => {
+  const [formData, setFormData] = useState(initialValues);
+  const [airports, setAirports] = useState({
+    departure: { name: 'Indira Gandhi International' },
+    arrival: { name: 'Chhatrapati Shivaji Maharaj International' }
+  });
 
-  const handleSearch = async () => {
-    if (!from || !to || !date) return alert('Fill all fields');
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
 
-    setLoading(true);
-    setFlights([]);
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSearch(formData);
+  };
+
+  const fetchAirportName = async (iata, type) => {
     try {
-      const response = await axios.get(`http://localhost:10000/api/search-kiwi`, {
-        params: { from, to, date }
+      const response = await axios.get('http://localhost:5000/api/airports', {
+        params: { search: iata }
       });
-
-      const results = response.data?.data?.results || [];
-
-      // If no results found
-      if (!Array.isArray(results) || results.length === 0) {
-        setFlights([]);
-        setLoading(false);
-        return;
+      
+      if (response.data.data && response.data.data.length > 0) {
+        const airport = response.data.data.find(a => a.iata_code === iata);
+        if (airport) {
+          setAirports(prev => ({
+            ...prev,
+            [type]: { name: airport.airport_name }
+          }));
+        }
       }
-
-      // Process each result (simplified for display)
-      const parsedFlights = results.map((flight, index) => ({
-        id: index,
-        from: flight?.origin?.name || from,
-        to: flight?.destination?.name || to,
-        departure: flight?.departureTime || date,
-        airline: flight?.airline?.name || 'Unknown',
-        price: flight?.price || 'N/A'
-      }));
-
-      setFlights(parsedFlights);
-    } catch (error) {
-      console.error('Frontend error:', error.message);
-      alert('Error fetching flights');
-    } finally {
-      setLoading(false);
+    } catch (err) {
+      console.error('Failed to fetch airport:', err);
     }
   };
 
-  return (
-    <div style={{ padding: '20px' }}>
-      <h2>🛫 Travel Booking Platform</h2>
-      <p>Search and compare flights, hotels & more.</p>
+  useEffect(() => {
+    fetchAirportName(formData.departure, 'departure');
+    fetchAirportName(formData.arrival, 'arrival');
+  }, [formData.departure, formData.arrival]);
 
-      <input
-        type="text"
-        placeholder="From (e.g. DEL)"
-        value={from}
-        onChange={(e) => setFrom(e.target.value)}
-        style={{ margin: '5px', padding: '5px' }}
-      />
-      <input
-        type="text"
-        placeholder="To (e.g. BOM)"
-        value={to}
-        onChange={(e) => setTo(e.target.value)}
-        style={{ margin: '5px', padding: '5px' }}
-      />
-      <input
-        type="date"
-        value={date}
-        onChange={(e) => setDate(e.target.value)}
-        style={{ margin: '5px', padding: '5px' }}
-      />
-      <button onClick={handleSearch} disabled={loading}>
+  return (
+    <form onSubmit={handleSubmit} className="flight-search-form">
+      <div className="form-group">
+        <label>From</label>
+        <div className="airport-input">
+          <input
+            type="text"
+            name="departure"
+            value={formData.departure}
+            onChange={handleChange}
+            maxLength="3"
+            placeholder="DEL"
+          />
+          <span className="airport-name">{airports.departure.name}</span>
+        </div>
+      </div>
+      
+      <div className="form-group">
+        <label>To</label>
+        <div className="airport-input">
+          <input
+            type="text"
+            name="arrival"
+            value={formData.arrival}
+            onChange={handleChange}
+            maxLength="3"
+            placeholder="BOM"
+          />
+          <span className="airport-name">{airports.arrival.name}</span>
+        </div>
+      </div>
+      
+      <div className="form-group">
+        <label>Date</label>
+        <input
+          type="date"
+          name="date"
+          value={formData.date}
+          onChange={handleChange}
+          min={new Date().toISOString().split('T')[0]}
+        />
+      </div>
+      
+      <button type="submit" disabled={loading}>
         {loading ? 'Searching...' : 'Search Flights'}
       </button>
-
-      <div style={{ marginTop: '20px' }}>
-        <h3>✈️ Flight Results</h3>
-        {flights.length === 0 ? (
-          <p>No flights found.</p>
-        ) : (
-          flights.map((flight) => (
-            <div key={flight.id} style={{ border: '1px solid #ccc', padding: '10px', marginBottom: '10px' }}>
-              <p><strong>From:</strong> {flight.from}</p>
-              <p><strong>To:</strong> {flight.to}</p>
-              <p><strong>Date:</strong> {flight.departure}</p>
-              <p><strong>Airline:</strong> {flight.airline}</p>
-              <p><strong>Price:</strong> ₹{flight.price}</p>
-              <button>Book Now</button>
-            </div>
-          ))
-        )}
-      </div>
-    </div>
+    </form>
   );
-}
+};
 
 export default FlightSearch;
